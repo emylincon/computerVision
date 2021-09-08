@@ -7,15 +7,18 @@ from PIL import Image, ImageDraw
 import face_recognition
 
 frame_size = {'height': 480, 'width': 640}
+# frame_size = {'height': 240, 'width': 320}
 cap = cv2.VideoCapture(0)
 cap.set(3, frame_size['width'])
 cap.set(4, frame_size['height'])
 
 
-class Makeup:
+class ClipArt:
     def __init__(self):
         self.mustache = "images/mustache.png"
         self.bow_tie = "images/bow_tie.png"
+        self.hat = "images/hat.png"
+        self.hat_offset = 20
 
     @staticmethod
     def ResizeWithAspectRatio(image, width=None, height=None, inter=cv2.INTER_AREA):
@@ -43,11 +46,20 @@ class Makeup:
     @staticmethod
     def put_image(image, position, width, overlay):
         new_image = cv2.imread(overlay, cv2.IMREAD_UNCHANGED)
-        new_image = Makeup.ResizeWithAspectRatio(new_image, width=width)
+        new_image = ClipArt.ResizeWithAspectRatio(new_image, width=width)
         # img = Makeup.draw_circle(img, ox, oy)
 
         frame = cvzone.overlayPNG(image, new_image,
                                   [position[0] - new_image.shape[1] // 2, position[1] - new_image.shape[0] // 2])
+        return frame
+
+    def put_hat(self, image, position, width, overlay):
+        new_image = cv2.imread(overlay, cv2.IMREAD_UNCHANGED)
+        new_image = self.ResizeWithAspectRatio(new_image, width=width)
+        # img = Makeup.draw_circle(img, ox, oy)
+        position = [position[0], position[1] - new_image.shape[1]]
+
+        frame = cvzone.overlayPNG(image, new_image, position)
         return frame
 
     def add_mustache(self, image):
@@ -59,7 +71,7 @@ class Makeup:
             pos = face_landmarks["top_lip"][a // 4]
             # cv2.circle(image, pos, 20, (0, 255, 0))
             try:
-                image = Makeup.put_image(image, pos, 350, self.mustache)
+                image = ClipArt.put_image(image, pos, 350, self.mustache)
             except ValueError:
                 print('mustache image outside frame')
         return image
@@ -71,9 +83,27 @@ class Makeup:
             #  - chin, left_eyebrow, right_eyebrow, nose_bridge, nose_tip, left_eye, right_eye, top_lip, bottom_lip
             pos = self.bow_tie_coordinates(face_landmarks)
             try:
-                image = Makeup.put_image(image, pos, 150, self.bow_tie)
+                image = ClipArt.put_image(image, pos, 150, self.bow_tie)
             except ValueError:
                 print('mustache image outside frame')
+        return image
+
+    def add_hat(self, image):
+        face_landmarks_list = face_recognition.face_landmarks(image)
+
+        for face_landmarks in face_landmarks_list:
+            # The face landmark detection model returns these features:
+            #  - chin, left_eyebrow, right_eyebrow, nose_bridge, nose_tip, left_eye, right_eye, top_lip, bottom_lip
+            chin = face_landmarks['chin']
+            x1 = min(chin, key=lambda v: v[0])
+            x2 = max(chin, key=lambda v: v[0])
+            width = (x2[0] - x1[0]) + self.hat_offset
+            x1 = (x1[0] - self.hat_offset // 2, x1[1])
+            try:
+                image = self.put_hat(image, x1, width=width, overlay=self.hat)
+            except ValueError:
+                print('image out of region')
+
         return image
 
     def add_clip_art(self, image, arts):
@@ -86,15 +116,25 @@ class Makeup:
                 pos = face_landmarks["top_lip"][a // 4]
                 # cv2.circle(image, pos, 20, (0, 255, 0))
                 try:
-                    image = Makeup.put_image(image, pos, 250, self.mustache)
+                    image = ClipArt.put_image(image, pos, 250, self.mustache)
                 except ValueError:
                     print('mustache image outside frame')
             if "bow_tie" in arts:
                 pos = self.bow_tie_coordinates(face_landmarks)
                 try:
-                    image = Makeup.put_image(image, pos, 150, self.bow_tie)
+                    image = ClipArt.put_image(image, pos, 150, self.bow_tie)
                 except ValueError:
                     print('bow_tie image outside frame')
+            if "hat" in arts:
+                chin = face_landmarks['chin']
+                x1 = min(chin, key=lambda v: v[0])
+                x2 = max(chin, key=lambda v: v[0])
+                width = (x2[0] - x1[0]) + self.hat_offset
+                x1 = (x1[0] - self.hat_offset // 2, x1[1])
+                try:
+                    image = self.put_hat(image, x1, width=width, overlay=self.hat)
+                except ValueError:
+                    print('image out of region')
         return image
 
 
@@ -122,7 +162,7 @@ class Button:
     def draw1(self, image, width=85):
         position = self.pos
         new_image = cv2.imread(self.get_overlay, cv2.IMREAD_UNCHANGED)
-        new_image = Makeup.ResizeWithAspectRatio(new_image, width=width)
+        new_image = ClipArt.ResizeWithAspectRatio(new_image, width=width)
         # img = Makeup.draw_circle(img, ox, oy)
 
         cvzone.cornerRect(image, (*self.pos, new_image.shape[1], new_image.shape[0]), 10, rt=0, colorC=(0, 0, 255))
@@ -136,22 +176,24 @@ class Menu:
     def __init__(self):
         self.mustache = "images/mustache.png"
         self.bow_tie = "images/bow_tie.png"
-        self.raw_letters = ['bow_tie', 'mustache']
+        self.raw_letters = ['bow_tie', 'mustache', 'hat']
         self.letters = [Button(pos=self.get_pos(item=i), text=i) for i in self.raw_letters]
         self.pause = 0.15
         self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0)}
 
     def get_pos(self, item):
-        pos = (frame_size['height'], (self.raw_letters.index(item) * 100) + 20)
+        step, offset = (50, 10) if frame_size['width'] == 320 else (100, 20)
+        pos = (frame_size['height'], (self.raw_letters.index(item) * step) + offset)
         return pos
 
     def draw(self, image, my_hand, width=85):
+        width = 43 if frame_size['width'] == 320 else 85
         arts = []
         for button in self.letters:
 
             position = button.pos
             new_image = cv2.imread(button.get_overlay, cv2.IMREAD_UNCHANGED)
-            new_image = Makeup.ResizeWithAspectRatio(new_image, width=width)
+            new_image = ClipArt.ResizeWithAspectRatio(new_image, width=width)
             x, y = button.get_coordinates()
             if my_hand:
                 l, _, _ = detector.findDistance(my_hand[0]['lmList'][8], my_hand[0]['lmList'][12], image)
@@ -174,11 +216,12 @@ class Menu:
 
     @staticmethod
     def draw_art(image, arts):
-        return Makeup().add_clip_art(image=image, arts=arts)
+        return ClipArt().add_clip_art(image=image, arts=arts)
 
 
 detector = HandDetector(detectionCon=0.8)
 menu = Menu()
+
 
 while True:
     success, img = cap.read()
@@ -186,7 +229,7 @@ while True:
 
     hands, img = detector.findHands(img)
     img = menu.draw(img, my_hand=hands)
-
+    # img = cv2.resize(img, (0, 0), fx=2, fy=2)
     cv2.imshow("Image", img)
 
     ch = cv2.waitKey(1)
