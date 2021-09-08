@@ -6,9 +6,10 @@ import cvzone
 from PIL import Image, ImageDraw
 import face_recognition
 
+frame_size = {'height': 480, 'width': 640}
 cap = cv2.VideoCapture(0)
-# cap.set(3, 1280)
-# cap.set(4, 720)
+cap.set(3, frame_size['width'])
+cap.set(4, frame_size['height'])
 
 
 class Makeup:
@@ -115,8 +116,8 @@ class Button:
         return image
 
     def get_coordinates(self):
-        return (self.pos[0]-self.size[0]//2, self.pos[1]-self.size[1]//2), \
-               (self.pos[0]+self.size[0]//2, self.pos[1]+self.size[1]//2)
+        return (self.pos[0] - self.size[0] // 2, self.pos[1] - self.size[1] // 2), \
+               (self.pos[0] + self.size[0] // 2, self.pos[1] + self.size[1] // 2)
 
     def draw1(self, image, width=85):
         position = self.pos
@@ -137,9 +138,11 @@ class Menu:
         self.bow_tie = "images/bow_tie.png"
         self.raw_letters = ['bow_tie', 'mustache']
         self.letters = [Button(pos=self.get_pos(item=i), text=i) for i in self.raw_letters]
+        self.pause = 0.15
+        self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0)}
 
     def get_pos(self, item):
-        pos = (frame_size[0], (self.raw_letters.index(item) * 100) + 20)
+        pos = (frame_size['height'], (self.raw_letters.index(item) * 100) + 20)
         return pos
 
     def draw(self, image, my_hand, width=85):
@@ -155,13 +158,13 @@ class Menu:
                 if l < 35:
                     cursor = my_hand[0]['lmList'][8]
                     if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                        button.switch = button.switch^1
-                        time.sleep(0.5)
+                        button.switch = button.switch ^ 1
+                        time.sleep(self.pause)
             if button.switch == 0:
-                color = (0, 0, 255)
+                color = self.color['red']
             else:
                 arts.append(button.text)
-                color = (0, 255, 0)
+                color = self.color['green']
             cvzone.cornerRect(image, (*button.pos, new_image.shape[1], new_image.shape[0]),
                               10, rt=0, colorC=color)
 
@@ -175,24 +178,14 @@ class Menu:
 
 
 detector = HandDetector(detectionCon=0.8)
-
-frame_size = (480, 640)
 menu = Menu()
 
 while True:
     success, img = cap.read()
     img = cv2.flip(img, 1)
 
-    # po = (img.shape[0], 20)
-    # # print(po, img.shape)
-    # but = Button(pos=po, text="Tie")
-    # img = but.draw1(img)
-
     hands, img = detector.findHands(img)
     img = menu.draw(img, my_hand=hands)
-
-    # img = Makeup().add_mustache(img)
-    # img = Makeup().add_bow_tie(img)
 
     cv2.imshow("Image", img)
 
