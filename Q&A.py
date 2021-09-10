@@ -237,6 +237,7 @@ class Question:
     def completed(self, image, my_hands):
         white = (255, 255, 255)
         black = (0, 0, 0)
+        green = (0, 255, 0)
         image, _ = cvzone.putTextRect(image, "Quiz Completed", [250, 300], 2, 2, offset=20, border=5, colorB=white,
                                       colorR=black)
         image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5, colorB=white,
@@ -246,10 +247,14 @@ class Question:
             x, y = (x1, y2), (x2, y1)
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
+                image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5,
+                                                 colorB=white,
+                                                 colorR=green)
+                image = self.progress_bar(image)
                 fingers = detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 0
-        image = self.progress_bar(image)
+
         return image
 
     def draw(self, image, my_hand):
