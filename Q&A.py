@@ -91,13 +91,13 @@ class Menu:
         self.number_buttons = self.button_list(self.number)
         self.category = {'Sports': 21, 'General Knowledge': 9, 'Maths': 19, 'Science & Nature': 17, 'History': 23,
                          'Computer Science': 18,
-                         'Celebrities': 26, 'Geography': 22, 'Politics': 24, 'Random': None}
+                         'Random': None, 'Geography': 22, 'Politics': 24, 'Celebrities': 26}
         self.category_buttons = self.category_list()
         self.review = 0
         self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0), 'white': (255, 255, 255),
                       'black': (0, 0, 0)}
         self.next = Button(pos=[round(frame_size["width"] // 1.2), 200], text="Next", scale=2, thickness=2,
-                           colorR=self.color['blue'], offset=20)
+                           colorR=self.color['blue'], offset=20, colorB=self.color['white'], border=3)
         self.choice = None
         self.question = None
         self.page_list = {1: self.levels, 2: self.category_buttons, 3: self.number_buttons}
@@ -105,16 +105,21 @@ class Menu:
     @staticmethod
     def button_list(text_list):
         return [Button(pos=[100, (i * 100) + 50], text=text_list[i], scale=2, thickness=2, colorR=(0, 0, 0), offset=20,
-                       border=3, colorB=(255, 255, 255)) for i in range(len(text_list))]
+                       border=3, colorB=(255, 255, 255)) if i != 0 else Button(pos=[100, (i * 100) + 50],
+                                                                               text=text_list[i], scale=2, thickness=2,
+                                                                               colorR=(255, 255, 255), offset=20,
+                                                                               border=3, colorB=(0, 0, 0),
+                                                                               colorT=(0, 0, 0)) for i in
+                range(len(text_list))]
 
     def category_list(self):
         text_list = list(self.category.keys())
         array = [Button(pos=self.pos(no=i, array=text_list), text=f"- {text_list[i]}", scale=2, thickness=2,
                         colorR=(0, 0, 0), offset=20,
                         border=3, colorB=(255, 255, 255)) for i in range(len(text_list))]
-        array = [Button(pos=[100, 50], text="Question Category?", scale=2, thickness=2, colorR=(0, 0, 0),
+        array = [Button(pos=[100, 50], text="Question Category?", scale=2, thickness=2, colorR=(255, 255, 255),
                         offset=20,
-                        border=3, colorB=(255, 255, 255))] + array
+                        border=3, colorT=(0, 0, 0), colorB=(0, 0, 0))] + array
 
         return array
 
@@ -241,7 +246,7 @@ class Question:
         self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0), 'white': (255, 255, 255),
                       'black': (0, 0, 0)}
         self.next = Button(pos=[round(frame_size["width"] // 1.2), 200], text="Next", scale=2, thickness=2,
-                           colorR=(255, 0, 0), offset=20)
+                           colorR=(255, 0, 0), offset=20, colorB=self.color['white'], border=2)
         self.current_display = self.button_list(text_list=self.questions[self.ques_id]['options'])
 
     def score(self):
@@ -251,7 +256,13 @@ class Question:
         return [Button(pos=[100, (i * 100) + 50], text=unquote(text_list[i]), scale=1, thickness=2,
                        colorR=self.color['black'], offset=20,
                        border=3,
-                       colorB=self.color['white']) for i in range(len(text_list))]
+                       colorB=self.color['white']) if i != 0 else Button(pos=[100, (i * 100) + 50],
+                                                                         text=unquote(text_list[i]), scale=1,
+                                                                         thickness=2,
+                                                                         colorR=self.color['white'], offset=20,
+                                                                         border=3, colorT=self.color['black'],
+                                                                         colorB=self.color['black']) for i in
+                range(len(text_list))]
 
     def get_url(self):
         if self.difficulty == 'random':
@@ -389,11 +400,8 @@ while True:
     img = cv2.flip(img, 1)
 
     hands, img = detector.findHands(img)
-    # img = cv2.resize(img, (0, 0), fx=2, fy=2)
-    # img = menu.draw_start(img, hands)
-    # img = menu.draw_difficulty(img, hands)
     img = menu.draw(img, hands)
-    cv2.imshow("Image", img)
+    cv2.imshow("Virtual Q&A", img)
 
     ch = cv2.waitKey(1)
     if ch & 0xFF == ord("q"):
