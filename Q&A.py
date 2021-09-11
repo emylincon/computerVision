@@ -4,9 +4,9 @@ from cvzone.HandTrackingModule import HandDetector
 import requests
 import random
 from urllib.parse import unquote
-import numpy as np
+import winsound
 import cvzone
-from PIL import Image, ImageDraw
+
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
@@ -18,6 +18,11 @@ detector = HandDetector(detectionCon=0.8)
 
 
 # https://www.youtube.com/watch?v=6400ShqS9BY
+
+def bell():
+    frequency = 1000
+    duration = 100   # ms
+    winsound.Beep(frequency=frequency,duration=duration)
 
 
 class Button:
@@ -102,6 +107,7 @@ class Menu:
                 fingers = detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 1
+                    bell()
 
             else:
                 self.start.colorR = (0, 0, 0)
@@ -128,6 +134,7 @@ class Menu:
                     fingers = detector.fingersUp(myHand=my_hands[0])
                     if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                         self.page = next_page
+                        bell()
                         self.options[option_key] = button.text[2:]
 
                 else:
@@ -160,16 +167,19 @@ class Question:
         self.ques_id = 0
         self.questions = self.get_question()
         self.page = 3
+        self.review = 0
+        self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0), 'white': (255, 255, 255), 'black': (0,0,0)}
+        self.next = Button(pos=[round(frame_size["width"] // 1.2), 200], text="Next", scale=2, thickness=2,
+                            colorR=(255, 0, 0), offset=20)
         self.current_display = self.button_list(text_list=self.questions[self.ques_id]['options'])
 
     def score(self):
         return round((self.correct/self.amount)*100)
 
-    @staticmethod
-    def button_list(text_list):
-        return [Button(pos=[100, (i * 100) + 50], text=unquote(text_list[i]), scale=1, thickness=2, colorR=(0, 0, 0), offset=20,
+    def button_list(self, text_list):
+        return [Button(pos=[100, (i * 100) + 50], text=unquote(text_list[i]), scale=1, thickness=2, colorR=self.color['black'], offset=20,
                        border=3,
-                       colorB=(255, 255, 255)) for i in range(len(text_list))]
+                       colorB=self.color['white']) for i in range(len(text_list))]
 
     def get_url(self):
         if self.difficulty == 'random':
@@ -187,9 +197,39 @@ class Question:
             question['results'][i]['options'] = [question['results'][i]['question']] + options
         return question['results']
 
+    def draw_review(self, image, my_hands):
+        image = self.current_display[0].putTextRect(image)
+        for button in self.current_display[1:]:
+            if unquote(self.questions[self.ques_id-1]['correct_answer']) == button.text:
+                button.colorR = self.color['green']
+            else:
+                button.colorR = self.color['red']
+            image = button.putTextRect(image)
+        if my_hands:
+            # x, y = self.start.get_coordinates()
+            [x1, y2, x2, y1] = self.next.my_position()
+            x, y = (x1, y2), (x2, y1)
+            cursor = my_hands[0]['lmList'][8]
+            if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
+                self.next.colorR = self.color['green']
+                fingers = detector.fingersUp(myHand=my_hands[0])
+                if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
+                    self.review = 0
+                    self.update_current_display()
+                    bell()
+            else:
+                self.next.colorR = self.color['blue']
+
+        image = self.next.putTextRect(image)
+        image = self.progress_bar(image)
+        return image
+
+    def update_current_display(self):
+        if self.ques_id < self.amount:
+            self.current_display = self.button_list(text_list=self.questions[self.ques_id]['options'])
+
     def draw_question(self, image, my_hands, obj_list):
         image = obj_list[0].putTextRect(image)
-        changed = 0
         for button in obj_list[1:]:
             if my_hands:
                 [x1, y2, x2, y1] = button.my_position()
@@ -202,25 +242,22 @@ class Question:
                         if unquote(self.questions[self.ques_id]['correct_answer']) == button.text:
                             self.correct += 1
                         self.ques_id += 1
-                        changed = 1
+                        self.review = 1
+                        bell()
                         time.sleep(0.2)
                 else:
                     button.colorR = (0, 0, 0)
             image = button.putTextRect(image)
-        if changed == 1 and self.ques_id < self.amount:
-            self.current_display = self.button_list(text_list=self.questions[self.ques_id]['options'])
         image = self.progress_bar(image)
         return image
 
     def progress_bar(self, image):
         bar_value = 150 + (950//self.amount)*self.ques_id
-        black = (0,0,0)
-        green = (0,255,0)
-        white = (255, 255, 255)
+
         # progress
         y1 = 550
-        image = cv2.rectangle(image, (150, y1), (bar_value, 600), green, cv2.FILLED)
-        image = cv2.rectangle(image, (150, y1), (1100, 600), black, 5)
+        image = cv2.rectangle(image, (150, y1), (bar_value, 600), self.color['green'], cv2.FILLED)
+        image = cv2.rectangle(image, (150, y1), (1100, 600), self.color['black'], 5)
         per = f"Progress : {round((self.ques_id/self.amount)*100)}%"
         cv2.putText(image, per, (150 + 20, y1+33), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 4)
         # image, _ = cvzone.putTextRect(image, per, [1130, 635], 2, 2, offset=20, border=5, colorB=white, colorR=black)
@@ -228,38 +265,35 @@ class Question:
         # score
         y2 = 650
         bar_value = 150 + (950 // self.amount) * self.correct
-        image = cv2.rectangle(image, (150, y2), (bar_value, 700), green, cv2.FILLED)
-        image = cv2.rectangle(image, (150, y2), (1100, 700), black, 5)
+        image = cv2.rectangle(image, (150, y2), (bar_value, 700), self.color['green'], cv2.FILLED)
+        image = cv2.rectangle(image, (150, y2), (1100, 700), self.color['black'], 5)
         per = f"Score : {self.score()}%"
         cv2.putText(image, per, (150 + 20, y2 + 33), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), 4)
         return image
 
     def completed(self, image, my_hands):
-        white = (255, 255, 255)
-        black = (0, 0, 0)
-        green = (0, 255, 0)
-        image, _ = cvzone.putTextRect(image, "Quiz Completed", [250, 300], 2, 2, offset=20, border=5, colorB=white,
-                                      colorR=black)
-        image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5, colorB=white,
-                                      colorR=black)
+        image, _ = cvzone.putTextRect(image, "Quiz Completed", [250, 300], 2, 2, offset=20, border=5, colorB=self.color['white'],
+                                      colorR=self.color['black'])
+        image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5, colorB=self.color['white'],
+                                      colorR=self.color['black'])
         if my_hands:
             [x1, y2, x2, y1] = bbox
             x, y = (x1, y2), (x2, y1)
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5,
-                                                 colorB=white,
-                                                 colorR=green)
-                image = self.progress_bar(image)
+                                                 colorB=self.color['white'],
+                                                 colorR=self.color['green'])
                 fingers = detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 0
-
+        image = self.progress_bar(image)
         return image
 
     def draw(self, image, my_hand):
-
-        if self.ques_id < self.amount:
+        if self.review == 1:
+            return self.draw_review(image=image, my_hands=my_hand), self.page
+        elif self.ques_id < self.amount:
             return self.draw_question(image=image, my_hands=my_hand, obj_list=self.current_display), self.page
         else:
             image = self.completed(image, my_hand)
