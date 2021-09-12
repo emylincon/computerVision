@@ -95,8 +95,10 @@ class Menu:
         self.category_buttons = self.category_list()
         self.review = 0
         self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0), 'white': (255, 255, 255),
-                      'black': (0, 0, 0)}
+                      'black': (0, 0, 0), 'grey': (105, 105, 105)}
         self.next = Button(pos=[round(frame_size["width"] // 1.2), 200], text="Next", scale=2, thickness=2,
+                           colorR=self.color['blue'], offset=20, colorB=self.color['white'], border=3)
+        self.undo = Button(pos=[round(frame_size["width"] // 1.2), 400], text="Undo", scale=2, thickness=2,
                            colorR=self.color['blue'], offset=20, colorB=self.color['white'], border=3)
         self.choice = None
         self.question = None
@@ -170,8 +172,21 @@ class Menu:
                     bell()
             else:
                 self.next.colorR = self.color['blue']
+            [x1, y2, x2, y1] = self.undo.my_position()
+            x, y = (x1, y2), (x2, y1)
+            cursor = my_hands[0]['lmList'][8]
+            if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
+                self.undo.colorR = self.color['green']
+                fingers = detector.fingersUp(myHand=my_hands[0])
+                if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
+                    self.review = 0
+                    self.page -= 1
+                    bell()
+            else:
+                self.undo.colorR = self.color['blue']
 
         image = self.next.putTextRect(image)
+        image = self.undo.putTextRect(image)
         return image
 
     def draw_difficulty(self, image, my_hands):
@@ -197,7 +212,7 @@ class Menu:
                 x, y = (x1, y2), (x2, y1)
                 cursor = my_hands[0]['lmList'][8]
                 if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                    button.colorR = (0, 255, 0)
+                    button.colorR = self.color['grey']
                     fingers = detector.fingersUp(myHand=my_hands[0])
                     if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                         self.page = next_page
@@ -244,10 +259,11 @@ class Question:
         self.page = 4
         self.review = 0
         self.color = {'green': (0, 255, 0), 'red': (0, 0, 255), 'blue': (255, 0, 0), 'white': (255, 255, 255),
-                      'black': (0, 0, 0)}
+                      'black': (0, 0, 0), 'grey': (105, 105, 105), 'orange': (0, 165, 255)}
         self.next = Button(pos=[round(frame_size["width"] // 1.2), 200], text="Next", scale=2, thickness=2,
                            colorR=(255, 0, 0), offset=20, colorB=self.color['white'], border=2)
         self.current_display = self.button_list(text_list=self.questions[self.ques_id]['options'])
+        self.chosen = None
 
     def score(self):
         return round((self.correct / self.amount) * 100)
@@ -290,6 +306,9 @@ class Question:
     def draw_review(self, image, my_hands):
         image = self.current_display[0].putTextRect(image)
         for button in self.current_display[1:]:
+            if self.chosen == button.text:
+                button.colorB = self.color['black']
+                button.colorT = self.color['black']
             if unquote(self.questions[self.ques_id - 1]['correct_answer']) == button.text:
                 button.colorR = self.color['green']
             else:
@@ -333,6 +352,7 @@ class Question:
                             self.correct += 1
                         self.ques_id += 1
                         self.review = 1
+                        self.chosen = button.text
                         bell()
                         time.sleep(0.2)
                 else:
