@@ -1,13 +1,11 @@
-import time
 import cv2
 from Util import Button
 from cvzone.HandTrackingModule import HandDetector
-import requests
 import random
-from urllib.parse import unquote
-import winsound
+from threading import Thread
 from Util import Color
 import cvzone
+import winsound
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
@@ -86,8 +84,10 @@ class Flies:
     def __init__(self):
         self.speed = 10
         self.marked = None
+        self.fly_sound = "images/fly_frog_game/fly-noise.wav"
         self.killed = 0
         self.no_of_flies = 3
+        self.is_playing = False
         self.flies = [Fly((50+random.randrange(frame_size['width']), 50+random.randrange(frame_size['height'])), 10, i) for i in range(self.no_of_flies)]
 
     def refresh(self):
@@ -110,6 +110,12 @@ class Flies:
                     # fly.pos = cursor
                     return get_center(fly.pos, fly.fly_image)
 
+    def play_sound(self):
+        def fly_play():
+            winsound.PlaySound(self.fly_sound, winsound.SND_FILENAME)
+        self.is_playing = Thread(target=fly_play)
+        self.is_playing.start()
+
     def draw(self, image, my_hand):
         fly_pos = None
         for fly in self.flies:
@@ -128,6 +134,10 @@ class Flies:
             if loc is not None:
                 fly_pos = loc
                 self.marked = fly
+        if self.is_playing is False:
+            self.play_sound()
+        elif not self.is_playing.is_alive():
+            self.play_sound()
 
         return image, fly_pos
 
@@ -135,6 +145,7 @@ class Flies:
 class Frog:
     def __init__(self):
         self.frog_image_path = "images/fly_frog_game/frog.png"
+        self.frog_sound = "images/fly_frog_game/bullfrog.wav"
         self.frog_image = cv2.imread(self.frog_image_path, cv2.IMREAD_UNCHANGED)
         self.height = 200
         self.frog_image_small = Fly.ResizeWithAspectRatio(image=self.frog_image, height=self.height)
@@ -149,8 +160,14 @@ class Frog:
 
     def eat_animation(self, image):
         fly_pos = self.points.pop(0)
-        image = cv2.line(image, self.start, fly_pos, color.orange, 4)
+        image = cv2.line(image, self.start, fly_pos, color.orange, 5)
         return image
+
+    def play_sound(self):
+        def frog_play():
+            winsound.PlaySound(self.frog_sound, winsound.SND_FILENAME)
+        t1 = Thread(target=frog_play)
+        t1.start()
 
     def draw(self, image, fly_pos=None):
         # print("fly:", fly_pos)
@@ -161,6 +178,7 @@ class Frog:
             image = self.eat_animation(image)
             if not self.points:
                 pos = (-1, -1)
+                self.play_sound()
             else:
                 pos = self.points[0]
         frame = cvzone.overlayPNG(image, self.frog_image_small,
