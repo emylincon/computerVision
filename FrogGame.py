@@ -14,7 +14,7 @@ cap.set(3, frame_size['width'])
 cap.set(4, frame_size['height'])
 
 detector = HandDetector(detectionCon=0.8)
-color = Color()
+
 
 # https://www.youtube.com/watch?v=6400ShqS9BY
 
@@ -46,10 +46,13 @@ class Fly:
             r = width / float(w)
             dim = (width, int(h * r))
 
-        return cv2.resize(image, dim, interpolation=inter)
+        return cv2.resize(image, dim, interpolation=inter) # cv2.INTER_AREA
 
     def get_coordinates(self):
         w, h = self.fly_image.shape[0], self.fly_image.shape[1]
+        off = 10
+        # (self.pos[0] - self.offset, self.pos[1] + self.offset), (
+        #             self.pos[0] + w + self.offset, self.pos[1] - h - self.offset)
         return (self.pos[0], self.pos[1]), (self.pos[0] + w, self.pos[1] - h)
 
     def my_position(self):
@@ -101,9 +104,10 @@ class Flies:
         x, y = (x1, y2), (x2, y1)
         if my_hand:
             l, _, _ = detector.findDistance(my_hand[0]['lmList'][8], my_hand[0]['lmList'][12], image)
-            if l < 50:
+            if l < 60:
                 cursor = my_hand[0]['lmList'][8]
                 # print(f"a={x[0]}, b={cursor[0]}, c={y[0]}, d={x[1]}, e={cursor[1]}, f={y[1]}")
+                # if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                     # print('caught')
                     # color = (0, 255, 0)
@@ -121,9 +125,7 @@ class Flies:
         for fly in self.flies:
             if fly == self.marked:
                 if self.marked.pos == (-1, -1):
-                    # print('deleted', len(self.flies))
                     self.flies.remove(fly)
-                    # print('deleted', len(self.flies))
                     self.marked = None
                     self.killed += 1
                 else:
@@ -134,10 +136,10 @@ class Flies:
             if loc is not None:
                 fly_pos = loc
                 self.marked = fly
-        if self.is_playing is False:
-            self.play_sound()
-        elif not self.is_playing.is_alive():
-            self.play_sound()
+        # if self.is_playing is False:
+        #     self.play_sound()
+        # elif not self.is_playing.is_alive():
+        #     self.play_sound()
 
         return image, fly_pos
 
@@ -145,7 +147,7 @@ class Flies:
 class Frog:
     def __init__(self):
         self.frog_image_path = "images/fly_frog_game/frog.png"
-        self.frog_sound = "images/fly_frog_game/bullfrog.wav"
+        self.frog_sound = "images/fly_frog_game/bullfrog1.wav"
         self.frog_image = cv2.imread(self.frog_image_path, cv2.IMREAD_UNCHANGED)
         self.height = 200
         self.frog_image_small = Fly.ResizeWithAspectRatio(image=self.frog_image, height=self.height)
@@ -160,7 +162,7 @@ class Frog:
 
     def eat_animation(self, image):
         fly_pos = self.points.pop(0)
-        image = cv2.line(image, self.start, fly_pos, color.orange, 5)
+        image = cv2.line(image, self.start, fly_pos, Color.orange, 5)
         return image
 
     def play_sound(self):
@@ -190,23 +192,52 @@ class Game:
     def __init__(self):
         self.flies = Flies()
         self.frog = Frog()
-        self.play_again = Button(pos=[round(frame_size['width']/2.2), 200], text="Play Again", scale=2, thickness=2, colorR=color.black,
+        self.play_again = Button(pos=[round(frame_size['width']/2.2), 200], text="Play Again", scale=2, thickness=2, colorR=Color.black,
                             offset=20,
-                            border=3, colorB=color.white)
+                            border=3, colorB=Color.white)
         self.display_play = None
+        self.grass_path = 'images/fly_frog_game/grass2.png'
+        self.grass = cv2.imread(self.grass_path, cv2.IMREAD_UNCHANGED)
+        self.grass = Fly.ResizeWithAspectRatio(self.grass, width=frame_size['width'])
+        self.grass_pos = (0,frame_size['height']-self.grass.shape[0])
+        self.target_pos = (random.randrange(200), random.randrange(200))
+
+    def draw_target(self, frame):
+        radius = 20
+        frame = cv2.circle(img=frame, center=self.target_pos, radius=radius, color=Color.red, thickness=2)
+        sv, ev = (self.target_pos[0], self.target_pos[1] - radius), (self.target_pos[0], self.target_pos[1] + radius)
+        sh, eh = (self.target_pos[0] - radius, self.target_pos[1]), (self.target_pos[0] + radius, self.target_pos[1])
+        frame = cv2.line(img=frame, pt1=sv, pt2=ev, color=Color.red, thickness=1)
+        frame = cv2.line(img=frame, pt1=sh, pt2=eh, color=Color.red, thickness=1)
+        return frame
+
+    def target(self, my_hands, frame):
+        if my_hands:
+            self.target_pos = my_hands[0]['lmList'][8]
+            frame = self.draw_target(frame)
+        else:
+            frame = self.draw_target(frame)
+        return frame
 
     def hungry_meter(self, image):
         x1 = 250
         x2 = 1100
-        y2 = 600
+        y2 = 660  # 600
         bar_value = x1 + ((x2-x1) // self.flies.no_of_flies) * self.flies.killed
 
         # progress
-        y1 = frame_size['height'] - 80
-        image = cv2.rectangle(image, (x1, y1), (bar_value, y2), color.green, cv2.FILLED)
-        image = cv2.rectangle(image, (x1, y1), (x2, y2), color.black, 5)
-        per = f"Hungry Meter : {round((self.flies.killed / self.flies.no_of_flies) * 100)}%"
-        cv2.putText(image, per, (x1 + 20, y1 - 10), cv2.FONT_HERSHEY_PLAIN, 2, color.black, 4)
+        score = round((self.flies.killed / self.flies.no_of_flies) * 100)
+        if score < 35:
+            color = Color.red
+        elif score < 70:
+            color = Color.orange
+        else:
+            color = Color.green
+        y1 = 700  # frame_size['height'] - 80
+        image = cv2.rectangle(image, (x1, y1), (bar_value, y2), color, cv2.FILLED)
+        image = cv2.rectangle(image, (x1, y1), (x2, y2), Color.black, 5)
+        per = f"Hungry Meter : {score}%"
+        cv2.putText(image, per, (x1 + 20, y1 - 10), cv2.FONT_HERSHEY_PLAIN, 2, Color.white, 4)
         return image
 
     def draw_play_again(self, image, my_hands):
@@ -215,17 +246,18 @@ class Game:
             x, y = (x1, y2), (x2, y1)
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                self.play_again.colorR = color.green
+                self.play_again.colorR = Color.green
                 fingers = detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.flies.refresh()
                     bell()
             else:
-                self.play_again.colorR = color.black
+                self.play_again.colorR = Color.black
         image = self.play_again.putTextRect(image)
         return image
 
     def draw(self, image, my_hand):
+        image = cvzone.overlayPNG(image, self.grass, self.grass_pos)
         image, fly_pos = self.flies.draw(image, my_hand)
         frame, pos = self.frog.draw(image, fly_pos)
         if pos:
@@ -234,11 +266,10 @@ class Game:
         if self.flies.no_of_flies == self.flies.killed:
             frame = self.draw_play_again(frame, my_hand)
             # frame = self.play_again.putTextRect(frame)
+        frame = self.target(my_hands=my_hand, frame=frame)
         return frame
 
 
-# fly = Fly((100, 100), 10)
-# obj = Flies()
 game = Game()
 
 while True:
