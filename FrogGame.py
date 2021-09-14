@@ -25,8 +25,7 @@ def bell():
 
 
 class Fly:
-    def __init__(self, pos, speed, fly_id):
-        self.id = fly_id
+    def __init__(self, pos, speed):
         self.pos = pos
         self.speed = speed
         self.fly_image_path = "images/fly_frog_game/footer-fly.png"
@@ -46,7 +45,21 @@ class Fly:
             r = width / float(w)
             dim = (width, int(h * r))
 
-        return cv2.resize(image, dim, interpolation=inter) # cv2.INTER_AREA
+        return cv2.resize(image, dim, interpolation=inter)  # cv2.INTER_AREA
+
+    def get_vertices(self):
+        pos = (self.pos[0] - self.fly_image.shape[1] // 2, self.pos[1] - self.fly_image.shape[0] // 2)
+        p1 = pos
+        p2 = (pos[0] + self.fly_image.shape[0], pos[1])
+        p3 = (pos[0] + self.fly_image.shape[0], pos[1] + self.fly_image.shape[1])
+        p4 = (pos[0], pos[1] + self.fly_image.shape[1])
+        return p1, p2, p3, p4
+
+    def plot_vertices(self, image):
+        for point in self.get_vertices():
+            radius = 4
+            image = cv2.circle(img=image, center=point, radius=radius, color=Color.red, thickness=2)
+        return image
 
     def get_coordinates(self):
         w, h = self.fly_image.shape[0], self.fly_image.shape[1]
@@ -60,7 +73,7 @@ class Fly:
         return [x1, y2, x2, y1]
 
     def update_pos(self):
-        x, y = self.pos[0]+random.randrange(self.speed), self.pos[1]+random.randrange(self.speed)
+        x, y = self.pos[0] + random.randrange(self.speed), self.pos[1] + random.randrange(self.speed)
 
         xm, ym = [x - self.fly_image.shape[1] // 2, y - self.fly_image.shape[0] // 2]
         if xm + self.fly_image.shape[1] > frame_size['width']:
@@ -71,52 +84,81 @@ class Fly:
 
     def put_image(self, image):
         self.update_pos()
-
+        # image = self.plot_vertices(image)
         frame = cvzone.overlayPNG(image, self.fly_image,
-                                  [self.pos[0] - self.fly_image.shape[1] // 2, self.pos[1] - self.fly_image.shape[0] // 2])
+                                  [self.pos[0] - self.fly_image.shape[1] // 2,
+                                   self.pos[1] - self.fly_image.shape[0] // 2])
 
         return frame
 
     def draw(self, image):
         frame = cvzone.overlayPNG(image, self.fly_image,
-                                  [self.pos[0] - self.fly_image.shape[1] // 2, self.pos[1] - self.fly_image.shape[0] // 2])
+                                  [self.pos[0] - self.fly_image.shape[1] // 2,
+                                   self.pos[1] - self.fly_image.shape[0] // 2])
         return frame
 
 
 class Flies:
-    def __init__(self):
-        self.speed = 10
+    def __init__(self, speed=10, no_of_flies=3):
+        self.speed = speed
         self.marked = None
         self.fly_sound = "images/fly_frog_game/fly-noise.wav"
         self.killed = 0
-        self.no_of_flies = 3
+        self.no_of_flies = no_of_flies
         self.is_playing = False
-        self.flies = [Fly((50+random.randrange(frame_size['width']), 50+random.randrange(frame_size['height'])), 10, i) for i in range(self.no_of_flies)]
+        self.flies = [
+            Fly((50 + random.randrange(frame_size['width']), 50 + random.randrange(frame_size['height'])), self.speed)
+            for i in range(self.no_of_flies)]
 
     def refresh(self):
         self.killed = 0
-        self.flies = [Fly((50+random.randrange(frame_size['width']), 50+random.randrange(frame_size['height'])), 10, i) for i in range(self.no_of_flies)]
+        self.flies = [
+            Fly((50 + random.randrange(frame_size['width']), 50 + random.randrange(frame_size['height'])), self.speed)
+            for i in range(self.no_of_flies)]
+
+    @staticmethod
+    def is_point_in_rect(vertices, point):
+        p1, p2, p3, p4 = vertices
+        (x1, y1) = p1
+        (x2, y2) = p2
+        (x4, y4) = p4
+        (x, y) = point
+        p21 = (x2 - x1, y2 - y1)
+        p41 = (x4 - x1, y4 - y1)
+
+        p21magnitude_squared = p21[0] ** 2 + p21[1] ** 2
+        p41magnitude_squared = p41[0] ** 2 + p41[1] ** 2
+
+        p = (x - x1, y - y1)
+        response = False
+
+        if 0 <= p[0] * p21[0] + p[1] * p21[1] <= p21magnitude_squared:
+            if 0 <= p[0] * p41[0] + p[1] * p41[1] <= p41magnitude_squared:
+                response = True
+
+        return response
 
     def check_image(self, my_hand, fly, image):
         def get_center(pos, obj):
             return [pos[0] + obj.shape[1] // 2, pos[1] + obj.shape[0] // 2]
+
         [x1, y2, x2, y1] = fly.my_position()
         x, y = (x1, y2), (x2, y1)
         if my_hand:
-            l, _, _ = detector.findDistance(my_hand[0]['lmList'][8], my_hand[0]['lmList'][12], image)
+            l, _ = detector.findDistance(my_hand[0]['lmList'][8], my_hand[0]['lmList'][12])
             if l < 60:
                 cursor = my_hand[0]['lmList'][8]
-                # print(f"a={x[0]}, b={cursor[0]}, c={y[0]}, d={x[1]}, e={cursor[1]}, f={y[1]}")
-                # if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                    # print('caught')
-                    # color = (0, 255, 0)
-                    # fly.pos = cursor
+                if self.is_point_in_rect(vertices=fly.get_vertices(), point=cursor):
+                    # print('Inside')
+                    # print(f"a={x[0]}, b={cursor[0]}, c={y[0]}, d={x[1]}, e={cursor[1]}, f={y[1]}")
+                    # if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
+                    # if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                     return get_center(fly.pos, fly.fly_image)
 
     def play_sound(self):
         def fly_play():
             winsound.PlaySound(self.fly_sound, winsound.SND_FILENAME)
+
         self.is_playing = Thread(target=fly_play)
         self.is_playing.start()
 
@@ -152,11 +194,11 @@ class Frog:
         self.height = 200
         self.frog_image_small = Fly.ResizeWithAspectRatio(image=self.frog_image, height=self.height)
         self.pos = (5, frame_size['height'] - self.height)
-        self.start = (self.pos[0] + round(self.frog_image_small.shape[0]*(4/6)), self.pos[1]+20)
+        self.start = (self.pos[0] + round(self.frog_image_small.shape[0] * (4 / 6)), self.pos[1] + 20)
         self.points = []
 
     def fix_points(self, end_point):
-        p1 = (self.start[0]+end_point[0])//2, (self.start[1] + end_point[1])//2
+        p1 = (self.start[0] + end_point[0]) // 2, (self.start[1] + end_point[1]) // 2
         p2 = (self.start[0] + p1[0]) // 2, (self.start[1] + p1[1]) // 2
         self.points = [end_point, p1, p2]
 
@@ -168,6 +210,7 @@ class Frog:
     def play_sound(self):
         def frog_play():
             winsound.PlaySound(self.frog_sound, winsound.SND_FILENAME)
+
         t1 = Thread(target=frog_play)
         t1.start()
 
@@ -188,18 +231,30 @@ class Frog:
         return frame, pos
 
 
+class Level:
+    def __init__(self):
+        self.stage = 0
+        self.stages = {1: {'speed': 10, 'number': 5}, 2: {'speed': 20, 'number': 8}, 3: {'speed': 40, 'number': 12}}
+
+    def level_stage(self):
+        self.stage += 1
+        return self.stages[self.stage]
+
+
 class Game:
     def __init__(self):
+        self.level = Level()
         self.flies = Flies()
         self.frog = Frog()
-        self.play_again = Button(pos=[round(frame_size['width']/2.2), 200], text="Play Again", scale=2, thickness=2, colorR=Color.black,
-                            offset=20,
-                            border=3, colorB=Color.white)
+        self.play_again = Button(pos=[round(frame_size['width'] / 2.2), 200], text="Play Again", scale=2, thickness=2,
+                                 colorR=Color.black,
+                                 offset=20,
+                                 border=3, colorB=Color.white)
         self.display_play = None
         self.grass_path = 'images/fly_frog_game/grass2.png'
         self.grass = cv2.imread(self.grass_path, cv2.IMREAD_UNCHANGED)
         self.grass = Fly.ResizeWithAspectRatio(self.grass, width=frame_size['width'])
-        self.grass_pos = (0,frame_size['height']-self.grass.shape[0])
+        self.grass_pos = (0, frame_size['height'] - self.grass.shape[0])
         self.target_pos = (random.randrange(200), random.randrange(200))
 
     def draw_target(self, frame):
@@ -223,7 +278,7 @@ class Game:
         x1 = 250
         x2 = 1100
         y2 = 660  # 600
-        bar_value = x1 + ((x2-x1) // self.flies.no_of_flies) * self.flies.killed
+        bar_value = x1 + ((x2 - x1) // self.flies.no_of_flies) * self.flies.killed
 
         # progress
         score = round((self.flies.killed / self.flies.no_of_flies) * 100)
@@ -265,7 +320,8 @@ class Game:
         frame = self.hungry_meter(frame)
         if self.flies.no_of_flies == self.flies.killed:
             frame = self.draw_play_again(frame, my_hand)
-            # frame = self.play_again.putTextRect(frame)
+        # else:
+        # frame = self.play_again.putTextRect(frame)
         frame = self.target(my_hands=my_hand, frame=frame)
         return frame
 
@@ -275,8 +331,8 @@ game = Game()
 while True:
     success, img = cap.read()
     img = cv2.flip(img, 1)
-    
-    hands, img = detector.findHands(img)
+
+    hands = detector.findHands(img, draw=False)
     img = game.draw(image=img, my_hand=hands)
     cv2.imshow("Game", img)
 
