@@ -2,14 +2,13 @@ import cv2
 
 
 class Color:
-    def __init__(self):
-        self.green = (0, 255, 0)
-        self.red = (0, 0, 255)
-        self.blue = (255, 0, 0)
-        self.white = (255, 255, 255)
-        self.black = (0, 0, 0)
-        self.grey = (105, 105, 105)
-        self.orange = (0, 165, 255)
+    green = (0, 255, 0)
+    red = (0, 0, 255)
+    blue = (255, 0, 0)
+    white = (255, 255, 255)
+    black = (0, 0, 0)
+    grey = (105, 105, 105)
+    orange = (0, 165, 255)
 
 
 class Button:
