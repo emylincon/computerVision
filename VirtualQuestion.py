@@ -9,13 +9,7 @@ import cvzone
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
-cap = cv2.VideoCapture(0)
-cap.set(3, frame_size['width'])
-cap.set(4, frame_size['height'])
-
 detector = HandDetector(detectionCon=0.8)
-
-
 # https://www.youtube.com/watch?v=6400ShqS9BY
 
 def bell():
@@ -141,7 +135,11 @@ class Menu:
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 self.start.colorR = (0, 255, 0)
-                fingers = detector.fingersUp(myHand=my_hands[0])
+                try:
+                    fingers = detector.fingersUp(myHand=my_hands[0])
+                except AttributeError:
+                    detector.findHands(image)
+                    fingers = detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 1
                     bell()
@@ -413,19 +411,25 @@ class Question:
             return image, self.page
 
 
-menu = Menu()
+if __name__ == '__main__':
+    cap = cv2.VideoCapture(0)
+    cap.set(3, frame_size['width'])
+    cap.set(4, frame_size['height'])
 
-while True:
-    success, img = cap.read()
-    img = cv2.flip(img, 1)
+    detector = HandDetector(detectionCon=0.8)
+    menu = Menu()
 
-    hands, img = detector.findHands(img)
-    img = menu.draw(img, hands)
-    cv2.imshow("Virtual Q&A", img)
+    while True:
+        success, img = cap.read()
+        img = cv2.flip(img, 1)
 
-    ch = cv2.waitKey(1)
-    if ch & 0xFF == ord("q"):
-        break
+        hands, img = detector.findHands(img)
+        img = menu.draw(img, hands)
+        cv2.imshow("Virtual Q&A", img)
 
-cap.release()
-cv2.destroyAllWindows()
+        ch = cv2.waitKey(1)
+        if ch & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
