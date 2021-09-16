@@ -3,8 +3,9 @@ from Util import Button
 from cvzone.HandTrackingModule import HandDetector
 import random
 from threading import Thread
-from Util import Color
+from Util import Color, Button
 import cvzone
+import time
 import winsound
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
@@ -22,6 +23,71 @@ def bell():
     frequency = 1000
     duration = 100  # ms
     winsound.Beep(frequency=frequency, duration=duration)
+
+
+class Time:
+    def __init__(self, stop=5):
+        self.start = time.time()
+        self.stop = stop
+        self.time_button = Button(pos=(frame_size['width'] - 125, 50), text=f"{self.stop}s", colorR=Color.red, border=2,
+                                  colorB=Color.white)
+
+    def remaining(self):
+        if self.check():
+            return 0
+        return self.stop - round(time.time() - self.start)
+
+    def check(self):
+        now = time.time()
+        if (now - self.start) > self.stop:
+            return True
+        else:
+            return False
+
+    def draw_time(self, image):
+        remaining = self.remaining()
+        self.time_button.text = f"{remaining}s"
+        return self.time_button.putTextRect(image), remaining
+
+
+class Tutorial:
+    def __init__(self):
+        self.time = {1: None, 2: None}
+        self.two_finger_path = "images/fly_frog_game/2_fingers.png"
+        self.loser_finger_path = "images/fly_frog_game/loser.png"
+        self.pos = (10, 10)
+        self.loser_finger_raw = cv2.imread(self.loser_finger_path, cv2.IMREAD_UNCHANGED)
+        self.two_finger_raw = cv2.imread(self.two_finger_path, cv2.IMREAD_UNCHANGED)
+        self.width = 150
+        self.two_finger = Fly.ResizeWithAspectRatio(self.two_finger_raw, width=self.width)
+        self.loser_finger = Fly.ResizeWithAspectRatio(self.loser_finger_raw, width=self.width)
+        self.height = self.loser_finger.shape[1] if self.loser_finger.shape[1] > self.two_finger.shape[1] else \
+        self.two_finger.shape[1]
+        self.kind = {2: self.loser_finger, 1: self.two_finger}
+
+    def get_tutorial(self, image, kind: int):
+        if self.time[kind] is None:
+            self.time[kind] = Time()
+            return self.put_image(image, self.kind[kind])
+        elif self.time[kind].check():
+            return image
+        else:
+            return self.put_image(image, self.kind[kind])
+
+    def tutorial_boundary(self, image):
+        image = cv2.rectangle(image, self.pos, (self.pos[0] + self.width + 10, self.pos[1] + self.height + 10 + 70),
+                              color=Color.green, thickness=1)
+        image = cv2.rectangle(image, self.pos, (self.pos[0] + self.width + 10, self.pos[1] + 50), Color.green,
+                              cv2.FILLED)
+        cv2.putText(image, "Control", (self.pos[0] + 20, self.pos[1] + 33), cv2.FONT_HERSHEY_PLAIN, 2, Color.white, 4)
+        return image
+
+    def put_image(self, image, hand):
+        frame = cvzone.overlayPNG(image, hand,
+                                  [self.pos[0] + 5, self.pos[1] + 25])
+        frame = self.tutorial_boundary(frame)
+
+        return frame
 
 
 class Fly:
@@ -106,6 +172,7 @@ class Flies:
         self.killed = 0
         self.no_of_flies = no_of_flies
         self.is_playing = False
+        self.time = None  # Time()
         self.flies = [
             Fly((50 + random.randrange(frame_size['width']), 50 + random.randrange(frame_size['height'])), self.speed)
             for i in range(self.no_of_flies)]
@@ -115,6 +182,9 @@ class Flies:
         self.flies = [
             Fly((50 + random.randrange(frame_size['width']), 50 + random.randrange(frame_size['height'])), self.speed)
             for i in range(self.no_of_flies)]
+
+    def delete_all_flies(self):
+        self.flies = []
 
     @staticmethod
     def is_point_in_rect(vertices, point):
@@ -142,11 +212,11 @@ class Flies:
         def get_center(pos, obj):
             return [pos[0] + obj.shape[1] // 2, pos[1] + obj.shape[0] // 2]
 
-        [x1, y2, x2, y1] = fly.my_position()
-        x, y = (x1, y2), (x2, y1)
+        # [x1, y2, x2, y1] = fly.my_position()
+        # x, y = (x1, y2), (x2, y1)
         if my_hand:
             l, _ = detector.findDistance(my_hand[0]['lmList'][8], my_hand[0]['lmList'][12])
-            if l < 60:
+            if l < 60 or detector.fingersUp(myHand=my_hand[0]) == [0, 1, 0, 0, 0]:
                 cursor = my_hand[0]['lmList'][8]
                 if self.is_point_in_rect(vertices=fly.get_vertices(), point=cursor):
                     # print('Inside')
@@ -234,7 +304,9 @@ class Frog:
 class Level:
     def __init__(self):
         self.stage = 0
-        self.stages = {1: {'speed': 10, 'number': 5}, 2: {'speed': 20, 'number': 8}, 3: {'speed': 40, 'number': 12}}
+        self.stages = {1: {'speed': 10, 'number': 5, 'time': 15}, 2: {'speed': 20, 'number': 8, 'time': 25},
+                       3: {'speed': 40, 'number': 12, 'time': 25}}
+        self.max_level = max(self.stages)
 
     def level_stage(self):
         self.stage += 1
@@ -244,18 +316,51 @@ class Level:
 class Game:
     def __init__(self):
         self.level = Level()
-        self.flies = Flies()
+        self.current_level = self.level.level_stage()
+        self.flies = Flies(speed=self.current_level['speed'], no_of_flies=self.current_level['number'])
         self.frog = Frog()
         self.play_again = Button(pos=[round(frame_size['width'] / 2.2), 200], text="Play Again", scale=2, thickness=2,
                                  colorR=Color.black,
                                  offset=20,
                                  border=3, colorB=Color.white)
+        self.restart = Button(pos=[900, 200], text="Restart", scale=2, thickness=2,
+                                 colorR=Color.black,
+                                 offset=20,
+                                 border=3, colorB=Color.white)
+        self.level_button = Button(pos=[200, 200], text=f"Level: {self.level.stage}", scale=2, thickness=2,
+                                   colorR=Color.black,
+                                   offset=20,
+                                   border=3, colorB=Color.white)
+        self.completed = Button(pos=[round(frame_size['width'] / 2.2), 300], text=f"Congratulations! Game Completed!",
+                                scale=2, thickness=2,
+                                colorR=Color.black,
+                                offset=20,
+                                border=3, colorB=Color.white)
+        self.game_over = Button(pos=[round(frame_size['width'] / 2.2), 300], text="Game Over", scale=2, thickness=2,
+                                colorR=Color.black,
+                                offset=20,
+                                border=3, colorB=Color.white)
         self.display_play = None
         self.grass_path = 'images/fly_frog_game/grass2.png'
         self.grass = cv2.imread(self.grass_path, cv2.IMREAD_UNCHANGED)
         self.grass = Fly.ResizeWithAspectRatio(self.grass, width=frame_size['width'])
         self.grass_pos = (0, frame_size['height'] - self.grass.shape[0])
+        self.page = 1
+        self.time = Time(stop=self.current_level['time'])
+        self.tutorial = Tutorial()
+        self.timeout = False
         self.target_pos = (random.randrange(200), random.randrange(200))
+
+    def refresh(self):
+        # self.flies.refresh()
+        if self.timeout:
+            self.level.stage = 0 if self.level.stage == 0 else self.level.stage - 1
+        self.current_level = self.level.level_stage()
+        self.flies = Flies(speed=self.current_level['speed'], no_of_flies=self.current_level['number'])
+        self.tutorial = Tutorial()
+        self.time = Time(stop=self.current_level['time'])
+        self.timeout = False
+        self.page = 1
 
     def draw_target(self, frame):
         radius = 20
@@ -296,33 +401,59 @@ class Game:
         return image
 
     def draw_play_again(self, image, my_hands):
-        if my_hands:
-            [x1, y2, x2, y1] = self.play_again.my_position()
-            x, y = (x1, y2), (x2, y1)
-            cursor = my_hands[0]['lmList'][8]
-            if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
-                self.play_again.colorR = Color.green
-                fingers = detector.fingersUp(myHand=my_hands[0])
-                if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
-                    self.flies.refresh()
-                    bell()
-            else:
-                self.play_again.colorR = Color.black
-        image = self.play_again.putTextRect(image)
+        stage = self.level.stage
+        if self.timeout:
+            image = self.game_over.putTextRect(image)
+            stage -= 1
+            self.flies.delete_all_flies()
+            self.play_again.text = "Play Again"
+        elif self.level.stage != 3:
+            self.play_again.text = "Next"
+        if self.level.stage == 3 and self.timeout is False:
+            self.level.stage = 0
+            image = self.completed.putTextRect(image)
+            self.play_again.text = "Play Again"
+        else:
+            self.level_button.text = f"Level : {stage + 1}"
+            image = self.level_button.putTextRect(image)
+        button_list = [self.play_again, self.restart]
+        for i in range(2):
+            button = button_list[i]
+            if my_hands:
+                [x1, y2, x2, y1] = button.my_position()
+                x, y = (x1, y2), (x2, y1)
+                cursor = my_hands[0]['lmList'][8]
+                if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
+                    button.colorR = Color.green
+                    fingers = detector.fingersUp(myHand=my_hands[0])
+                    if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
+                        if i == 1:
+                            self.level.stage = 0
+                        self.refresh()
+                        bell()
+                else:
+                    button.colorR = Color.black
+            image = button.putTextRect(image)
         return image
 
     def draw(self, image, my_hand):
+        image = self.tutorial.get_tutorial(image, self.page)
         image = cvzone.overlayPNG(image, self.grass, self.grass_pos)
         image, fly_pos = self.flies.draw(image, my_hand)
         frame, pos = self.frog.draw(image, fly_pos)
         if pos:
             self.flies.marked.pos = pos
         frame = self.hungry_meter(frame)
-        if self.flies.no_of_flies == self.flies.killed:
+        if self.flies.no_of_flies == self.flies.killed or self.timeout:
+            self.page = 2
             frame = self.draw_play_again(frame, my_hand)
-        # else:
-        # frame = self.play_again.putTextRect(frame)
+        else:
+            self.page = 1
+            # frame = self.play_again.putTextRect(frame)
         frame = self.target(my_hands=my_hand, frame=frame)
+        if self.page == 1:
+            frame, remaining = self.time.draw_time(image=frame)
+            self.timeout = False if remaining != 0 else True
         return frame
 
 
