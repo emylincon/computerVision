@@ -9,7 +9,7 @@ import cvzone
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
-detector = HandDetector(detectionCon=0.8)
+# detector = HandDetector(detectionCon=0.8)
 # https://www.youtube.com/watch?v=6400ShqS9BY
 
 def bell():
@@ -74,7 +74,8 @@ class Button:
 
 
 class Menu:
-    def __init__(self):
+    def __init__(self, detector_):
+        self.detector = detector_
         self.page = 0
         self.options = {'level': 'Random'}
         self.start = Button(pos=[round(frame_size["width"] // 2.4), 100], text="Start Quiz", scale=2, thickness=2,
@@ -136,10 +137,10 @@ class Menu:
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 self.start.colorR = (0, 255, 0)
                 try:
-                    fingers = detector.fingersUp(myHand=my_hands[0])
+                    fingers = self.detector.fingersUp(myHand=my_hands[0])
                 except AttributeError:
-                    detector.findHands(image)
-                    fingers = detector.fingersUp(myHand=my_hands[0])
+                    self.detector.findHands(image)
+                    fingers = self.detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 1
                     bell()
@@ -164,7 +165,7 @@ class Menu:
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 self.next.colorR = self.color['green']
-                fingers = detector.fingersUp(myHand=my_hands[0])
+                fingers = self.detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.review = 0
                     bell()
@@ -175,7 +176,7 @@ class Menu:
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 self.undo.colorR = self.color['green']
-                fingers = detector.fingersUp(myHand=my_hands[0])
+                fingers = self.detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.review = 0
                     self.page -= 1
@@ -211,7 +212,7 @@ class Menu:
                 cursor = my_hands[0]['lmList'][8]
                 if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                     button.colorR = self.color['grey']
-                    fingers = detector.fingersUp(myHand=my_hands[0])
+                    fingers = self.detector.fingersUp(myHand=my_hands[0])
                     if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                         self.page = next_page
                         self.review = 1
@@ -238,7 +239,7 @@ class Menu:
         else:
             if self.question is None:
                 self.question = Question(amount=int(self.options['number']), difficulty=self.options['level'],
-                                         category=self.category[self.options['category']])
+                                         category=self.category[self.options['category']], detector_=self.detector)
             image, self.page = self.question.draw(image=image, my_hand=my_hands)
             if self.page != 4:
                 self.question = None
@@ -246,7 +247,8 @@ class Menu:
 
 
 class Question:
-    def __init__(self, amount=10, difficulty='random', category=None):
+    def __init__(self, amount=10, difficulty='random', category=None, detector_=None):
+        self.detector = detector_
         self.amount = amount
         self.difficulty = difficulty.lower()
         self.category = category
@@ -319,7 +321,7 @@ class Question:
             cursor = my_hands[0]['lmList'][8]
             if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                 self.next.colorR = self.color['green']
-                fingers = detector.fingersUp(myHand=my_hands[0])
+                fingers = self.detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.review = 0
                     self.update_current_display()
@@ -344,7 +346,7 @@ class Question:
                 cursor = my_hands[0]['lmList'][8]
                 if x[0] < cursor[0] < y[0] and x[1] < cursor[1] < y[1]:
                     button.colorR = (0, 255, 0)
-                    fingers = detector.fingersUp(myHand=my_hands[0])
+                    fingers = self.detector.fingersUp(myHand=my_hands[0])
                     if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                         if unquote(self.questions[self.ques_id]['correct_answer']) == button.text:
                             self.correct += 1
@@ -394,7 +396,7 @@ class Question:
                 image, bbox = cvzone.putTextRect(image, "Go To Start", [700, 300], 2, 2, offset=20, border=5,
                                                  colorB=self.color['white'],
                                                  colorR=self.color['green'])
-                fingers = detector.fingersUp(myHand=my_hands[0])
+                fingers = self.detector.fingersUp(myHand=my_hands[0])
                 if fingers == [1, 1, 0, 0, 0]:  # index, thumb are up
                     self.page = 0
                     bell()
@@ -417,7 +419,7 @@ if __name__ == '__main__':
     cap.set(4, frame_size['height'])
 
     detector = HandDetector(detectionCon=0.8)
-    menu = Menu()
+    menu = Menu(detector_=detector)
 
     while True:
         success, img = cap.read()
