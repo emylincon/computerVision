@@ -1,5 +1,4 @@
 import cv2
-from Util import Button
 from cvzone.HandTrackingModule import HandDetector
 import random
 from threading import Thread
@@ -10,12 +9,7 @@ import winsound
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
-cap = cv2.VideoCapture(0)
-cap.set(3, frame_size['width'])
-cap.set(4, frame_size['height'])
-
 detector = HandDetector(detectionCon=0.8)
-
 
 # https://www.youtube.com/watch?v=6400ShqS9BY
 
@@ -457,19 +451,25 @@ class Game:
         return frame
 
 
-game = Game()
+if __name__ == '__main__':
+    cap = cv2.VideoCapture(0)
+    cap.set(3, frame_size['width'])
+    cap.set(4, frame_size['height'])
 
-while True:
-    success, img = cap.read()
-    img = cv2.flip(img, 1)
+    detector = HandDetector(detectionCon=0.8)
+    game = Game()
 
-    hands = detector.findHands(img, draw=False)
-    img = game.draw(image=img, my_hand=hands)
-    cv2.imshow("Game", img)
+    while True:
+        success, img = cap.read()
+        img = cv2.flip(img, 1)
 
-    ch = cv2.waitKey(1)
-    if ch & 0xFF == ord("q"):
-        break
+        hands = detector.findHands(img, draw=False)
+        img = game.draw(image=img, my_hand=hands)
+        cv2.imshow("Game", img)
 
-cap.release()
-cv2.destroyAllWindows()
+        ch = cv2.waitKey(1)
+        if ch & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
