@@ -14,4 +14,4 @@ RUN apt update -y && apt install -y \
     && pip install -r requirements.txt \
     && pip install pygobject
 
-CMD ["bash"]
+CMD ["python3", "FrogGame"]
