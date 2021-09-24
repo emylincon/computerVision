@@ -465,7 +465,7 @@ class Game:
 if __name__ == '__main__':
     try:
         cap = cv2.VideoCapture(0)
-    except cv2.error:
+    except Exception:
         ip_address = input('Camera IP: ')
         url = f'rtsp://ubnt:ubnt@{ip_address}/s0'
         cap = cv2.VideoCapture(url)
