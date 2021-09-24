@@ -4,6 +4,14 @@ WORKDIR app
 
 COPY . .
 
-RUN apt update -y && apt install cmake -y && pip install -r requirements.txt
+RUN apt update -y && apt install -y \
+    cmake \
+    beep \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libgirepository1.0-dev \
+    && pip install -r requirements.txt \
+    && pip install pygobject
 
-CMD ['bash']
+CMD ["bash"]
