@@ -463,7 +463,8 @@ class Game:
 
 
 if __name__ == '__main__':
-
+    time.sleep(1)
+    print()
     ip_address = input('Camera IP[NONE]: ')
     if ip_address == '':
         cap = cv2.VideoCapture(0)
