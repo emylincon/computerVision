@@ -5,18 +5,27 @@ from threading import Thread
 from Util import Color, Button
 import cvzone
 import time
-import winsound
+from playsound import playsound
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
 frame_size = frame_options[2]
 detector = HandDetector(detectionCon=0.8)
 
 # https://www.youtube.com/watch?v=6400ShqS9BY
+try:
+    import winsound
+except ImportError:
+    import os
 
-def bell():
-    frequency = 1000
-    duration = 100  # ms
-    winsound.Beep(frequency=frequency, duration=duration)
+    def bell():
+        frequency = 1000
+        duration = 100  # ms
+        os.system('beep -f %s -l %s' % (frequency,duration))
+else:
+    def bell():
+        frequency = 1000
+        duration = 100  # ms
+        winsound.Beep(frequency=frequency, duration=duration)
 
 
 class Time:
@@ -221,7 +230,8 @@ class Flies:
 
     def play_sound(self):
         def fly_play():
-            winsound.PlaySound(self.fly_sound, winsound.SND_FILENAME)
+            playsound(self.fly_sound)
+            # winsound.PlaySound(self.fly_sound, winsound.SND_FILENAME)
 
         self.is_playing = Thread(target=fly_play)
         self.is_playing.start()
@@ -253,7 +263,7 @@ class Flies:
 class Frog:
     def __init__(self):
         self.frog_image_path = "images/fly_frog_game/frog.png"
-        self.frog_sound = "images/fly_frog_game/bullfrog1.wav"
+        self.frog_sound = "images/fly_frog_game/bullfrog.mp3"
         self.frog_image = cv2.imread(self.frog_image_path, cv2.IMREAD_UNCHANGED)
         self.height = 200
         self.frog_image_small = Fly.ResizeWithAspectRatio(image=self.frog_image, height=self.height)
@@ -273,7 +283,8 @@ class Frog:
 
     def play_sound(self):
         def frog_play():
-            winsound.PlaySound(self.frog_sound, winsound.SND_FILENAME)
+            playsound(self.frog_sound, False)
+            # winsound.PlaySound(self.frog_sound, winsound.SND_FILENAME)
 
         t1 = Thread(target=frog_play)
         t1.start()
@@ -452,7 +463,13 @@ class Game:
 
 
 if __name__ == '__main__':
-    cap = cv2.VideoCapture(0)
+    try:
+        cap = cv2.VideoCapture(0)
+    except cv2.error:
+        ip_address = input('Camera IP: ')
+        url = f'rtsp://ubnt:ubnt@{ip_address}/s0'
+        cap = cv2.VideoCapture(url)
+
     cap.set(3, frame_size['width'])
     cap.set(4, frame_size['height'])
 
