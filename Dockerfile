@@ -4,5 +4,6 @@ WORKDIR app
 
 COPY . .
 
-RUN pip install -r requirements.txt
+RUN apt update -y && apt install cmake -y && pip install -r requirements.txt
 
+CMD ['bash']
