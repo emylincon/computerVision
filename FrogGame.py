@@ -324,15 +324,21 @@ class Game:
         self.current_level = self.level.level_stage()
         self.flies = Flies(speed=self.current_level['speed'], no_of_flies=self.current_level['number'])
         self.frog = Frog()
+        if frame_size['height'] <= 480:
+            level_pos = [round(frame_size['width'] / 2.2), 100]
+            restart_pos = [round(frame_size['width'] / 2.2), 400]
+        else:
+            level_pos = [200, 200]
+            restart_pos = [900, 200]
         self.play_again = Button(pos=[round(frame_size['width'] / 2.2), 200], text="Play Again", scale=2, thickness=2,
                                  colorR=Color.black,
                                  offset=20,
                                  border=3, colorB=Color.white)
-        self.restart = Button(pos=[900, 200], text="Restart", scale=2, thickness=2,
+        self.restart = Button(pos=restart_pos, text="Restart", scale=2, thickness=2,
                                  colorR=Color.black,
                                  offset=20,
                                  border=3, colorB=Color.white)
-        self.level_button = Button(pos=[200, 200], text=f"Level: {self.level.stage}", scale=2, thickness=2,
+        self.level_button = Button(pos=level_pos, text=f"Level: {self.level.stage}", scale=2, thickness=2,
                                    colorR=Color.black,
                                    offset=20,
                                    border=3, colorB=Color.white)
