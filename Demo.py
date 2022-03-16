@@ -1,8 +1,9 @@
+# TODO: link the frog game
 import cv2
 from cvzone.HandTrackingModule import HandDetector
-from FrogGame import Game
-from Util import Button, Color
-from VirtualQuestion import Menu
+from FrogGame.FrogGame import Game
+from FrogGame.Util import Button, Color
+from QuestionGame.VirtualQuestion import Menu
 
 
 frame_options = [{'height': 240, 'width': 320}, {'height': 480, 'width': 640}, {'height': 720, 'width': 1280}]
