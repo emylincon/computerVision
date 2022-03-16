@@ -2,7 +2,7 @@ FROM python:3.7
 
 WORKDIR app
 
-COPY . .
+COPY ./FrogGame/* .
 
 RUN apt update -y && apt install -y \
     cmake \
