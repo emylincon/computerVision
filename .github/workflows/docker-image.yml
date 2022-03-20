@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Docker
 
 on:
   push:
@@ -16,5 +16,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build the Docker image
       run: |
+        cp requirements.txt FrogGame/requirements.txt
         cd FrogGame
         docker build . --file Dockerfile --tag my-image-name:$(date +%s)
