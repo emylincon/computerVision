@@ -4,7 +4,8 @@ WORKDIR app
 
 COPY . .
 
-RUN apt update -y && apt install -y \
+RUN apt update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends apt-utils && \
+    apt install -y apt-utils \
     cmake \
     beep \
     ffmpeg \
