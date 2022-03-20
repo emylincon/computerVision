@@ -56,8 +56,8 @@ class Time:
 class Tutorial:
     def __init__(self):
         self.time = {1: None, 2: None}
-        self.two_finger_path = "images/fly_frog_game/2_fingers.png"
-        self.loser_finger_path = "images/fly_frog_game/loser.png"
+        self.two_finger_path = "images/2_fingers.png"
+        self.loser_finger_path = "images/loser.png"
         self.pos = (10, 10)
         self.loser_finger_raw = cv2.imread(self.loser_finger_path, cv2.IMREAD_UNCHANGED)
         self.two_finger_raw = cv2.imread(self.two_finger_path, cv2.IMREAD_UNCHANGED)
@@ -97,7 +97,7 @@ class Fly:
     def __init__(self, pos, speed):
         self.pos = pos
         self.speed = speed
-        self.fly_image_path = "images/fly_frog_game/footer-fly.png"
+        self.fly_image_path = "images/footer-fly.png"
         self.fly_image = cv2.imread(self.fly_image_path, cv2.IMREAD_UNCHANGED)
 
     @staticmethod
@@ -171,7 +171,7 @@ class Flies:
     def __init__(self, speed=10, no_of_flies=3):
         self.speed = speed
         self.marked = None
-        self.fly_sound = "images/fly_frog_game/fly-noise.wav"
+        self.fly_sound = "images/fly-noise.wav"
         self.killed = 0
         self.no_of_flies = no_of_flies
         self.is_playing = False
@@ -262,8 +262,8 @@ class Flies:
 
 class Frog:
     def __init__(self):
-        self.frog_image_path = "images/fly_frog_game/frog.png"
-        self.frog_sound = "images/fly_frog_game/bullfrog.mp3"
+        self.frog_image_path = "images/frog.png"
+        self.frog_sound = "images/bullfrog.mp3"
         self.frog_image = cv2.imread(self.frog_image_path, cv2.IMREAD_UNCHANGED)
         self.height = 200
         self.frog_image_small = Fly.ResizeWithAspectRatio(image=self.frog_image, height=self.height)
@@ -352,7 +352,7 @@ class Game:
                                 offset=20,
                                 border=3, colorB=Color.white)
         self.display_play = None
-        self.grass_path = 'images/fly_frog_game/grass2.png'
+        self.grass_path = 'images/grass2.png'
         self.grass = cv2.imread(self.grass_path, cv2.IMREAD_UNCHANGED)
         self.grass = Fly.ResizeWithAspectRatio(self.grass, width=frame_size['width'])
         self.grass_pos = (0, frame_size['height'] - self.grass.shape[0])
